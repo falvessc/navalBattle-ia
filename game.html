@@ -1,0 +1,385 @@
+
+<html>
+  <head>
+      <meta charset="utf-8">
+      <title>Batalha Naval - IA - UNIVILLE</title>
+      <link rel="stylesheet" href="css/reset.css">
+      <link rel="stylesheet" href="css/game.css">
+      <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Crimson+Text:400,400italic,600">
+      <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Open+Sans+Condensed:700">
+  	  <script language="JavaScript">
+
+      // Desenhando os navios
+      var ship =  [[[1, 5], [1, 2, 5], [1, 2, 3, 5], [1, 2, 3, 4, 5]],
+                   [[6, 10], [6, 7, 10], [6, 7, 8, 10], [6, 7, 8, 9, 10]]];
+
+      // Desenhando navios afundados
+      var dead = [[[201, 203], [201, 202, 203], [201, 202, 202, 203], [201, 202, 202, 202, 203]],
+                  [[204, 206], [204, 205,206], [204,205,205,206], [204,205,205,205,206]]];
+
+      // Informações do navio
+      var shipTypes = [["Submarino", 2, 4], ["Contratorpedeiros", 3, 4], ["Navio-Tanque", 4, 2], ["Porta-avião", 5, 1]];
+
+      // Define quanto será o campo de batalha
+      var gridX = 16, gridY = 16;
+
+      // Informações sobre o jogador e o computador
+      var player = [], computer = [], shipPlayer = [], shipComputer = [];
+      var lifePlayer = 0, lifeComputer = 0, playFlag = true, statusMessage = "";
+
+      // Variável para controlar pré carregamento das imagens
+      var preLoad = [];
+
+      // Função para carregar as imagens
+      function imagesLoad() {
+          // Identifica quais imagens de batalha precisam ser carregadas
+          var i, ids = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 100, 101, 102, 103, 201, 202, 203, 204, 205, 206];
+          window.status = "Aguarde, carregando as imagens do jogo";
+
+          // Carrega todas as imagens do jogo
+          for (i=0;i<ids.length;++i) {
+              // Carrega uma imagem de cada vez
+              var img = new Image, name = "batt" + ids[i] + ".gif";
+              img.src = name;
+              preLoad[i] = img;
+          }
+
+          // Limpa o status da página
+          window.status = "";
+      }
+
+      // Função para distribuir aleatoriamente os navios
+      function shipsLoad(isComputer) {
+
+          // Controla enquanto percorre o grid
+          var y, x;
+          grid = [];
+
+          // Percorre todas as linhas e colunas do grid
+          for (y = 0; y < gridX; ++y) {
+              grid[y] = [];
+              for (x = 0; x < gridX; ++x)
+                  grid[y][x] = [100, -1, 0];
+          }
+
+          // Verifica o tamanho dos navios que precisa preencher
+          var shipNo = 0;
+          var s;
+          for (s = shipTypes.length - 1; s >= 0; --s) {
+
+              // Percorre pra preencher todos os tipos de navios possíveis
+              var i;
+              for (i = 0; i < shipTypes[s][2]; ++i) {
+                  var d = Math.floor(Math.random() * 2);
+                  var len = shipTypes[s][1], lx=gridX, ly=gridY, dx=0, dy=0;
+                  if (d == 0) {
+                      lx = gridX - len;
+                      dx = 1;
+                  } else {
+                      ly = gridY - len;
+                      dy = 1;
+                  }
+
+                  // Continua sorteando os lugares onde ficarão os navios de forma randômica
+                  var x, y, ok;
+                  do {
+                      y = Math.floor(Math.random() * ly);
+                      x = Math.floor(Math.random() * lx);
+
+                      var j, cx = x, cy = y;
+                      ok = true;
+
+                      for (j = 0; j < len; ++j) {
+                          if (grid[cy][cx][0] < 100) {
+                              ok = false;
+                              break;
+                          }
+
+                          cx += dx;
+                          cy += dy;
+                      }
+                  } while(!ok);
+
+                  // Percorre todos os grids de navios
+                  var j, cx = x, cy = y;
+                  for (j = 0; j < len; ++j) {
+                      grid[cy][cx][0] = ship[d][s][j];
+                      grid[cy][cx][1] = shipNo;
+                      grid[cy][cx][2] = dead[d][s][j];
+                      cx += dx;
+                      cy += dy;
+                  }
+
+                  // Verifica se está sendo desenhado o grid do computador
+                  if (isComputer) {
+                      // Adiciona navios do computador
+                      shipComputer[shipNo] = [s,[s][1]];
+                      lifeComputer++;
+                  } else {
+                      // Adiciona navios do jogador
+                      shipPlayer[shipNo] = [s,shipTypes[s][1]];
+                      lifePlayer++;
+                  }
+
+                  shipNo++;
+              }
+          }
+
+          // Retorna o grid desenhado
+          return grid;
+      }
+
+      // Função para mudar a imagem exibida na grade
+      function setImage(y, x, id, isComputer) {
+
+          // Verifica se está sendo desenhado o grid do computador
+          if (isComputer) {
+              // Desenha a imagem no x e y específico para o computador
+              computer[y][x][0] = id;
+              document.images["pc" + y + "_" + x].src = "batt" + id + ".gif";
+          } else {
+              // Desenha a imagem no x e y específico para o jogador
+              player[y][x][0] = id;
+              document.images["ply" + y + "_" + x].src = "batt" + id + ".gif";
+          }
+      }
+
+      // Função que mostra a grid desenhada
+      function showGrid(isComputer) {
+          var y,x;
+          for (y = 0; y < gridY; ++y) {
+              for (x = 0; x < gridX; ++x) {
+                  // Verifica se está sendo desenhado o grid do computador
+                  if (isComputer){
+                      // Desenha o quadrado em azul (padrão) para o computador
+                      document.write('<a href="javascript:gridClick(' + y +',' + x + ');"><img name="pc' + y + '_' + x + '" src="batt100.gif" width=25 height=25></a>');
+                  } else {
+                      // Desenha o quadrado em para o jogador que poderá ser ou não a sua nave escondida
+                      document.write('<a href="javascript:void(0);"><img name="ply' + y + '_' + x + '" src="batt' + player[y][x][0] + '.gif" width=25 height=25></a>');
+                  }
+              }
+
+              document.write('<br>');
+          }
+      }
+
+      // Função para captar o click da grid, renderizador
+      function gridClick(y,x) {
+
+          // Verifica se ainda está tendo jogo
+          if (playFlag) {
+              // Verifica se é alguma parte da nave do computador
+              if (computer[y][x][0] < 100) {
+                  // Seta a imagem que ela foi descoberta e armazena a posição
+                  setImage(y, x, 103, true);
+                  var shipNo = computer[y][x][1];
+
+                  // Caso toda a nave já foi descoberta, avisa o jogador sobre o tipo de navio e atualiza status
+                  if (--shipComputer[shipNo][1] == 0) {
+                      sinkShip(computer, shipNo, true);
+                      alert("Você afundou meu " + shipTypes[shipComputer[shipNo][0]][0]);
+                      updateStatus();
+
+                      // Caso o computador não tenha mais navios
+                      if (--lifeComputer == 0) {
+                         alert("O JOGADOR ganhou!!!");
+                         playFlag = false;
+                      }
+                  }
+
+                  // Verifica se ainda está tendo jogo
+                  if (playFlag)
+                      // Efetua a movimentação do computador
+                      computerMove();
+
+              // Caso não tenha nenhuma parte do navio na posição específica, apenas indica que a posição já foi verificada
+              } else if (computer[y][x][0] == 100) {
+                  setImage(y, x, 102, true);
+                  computerMove();
+              }
+          }
+      }
+
+      // Função responsável por movimentação com inteligência artificial
+      function computerMove() {
+
+          // Variáveis de controle
+          var x, y, pass;
+          var sx, sy;
+          var selected = false;
+
+          // Efetua dois passos na procura por navio para destruir, desde que não esteja já selecionado
+          for (pass = 0; pass < 2; ++pass) {
+              for (y = 0; y < gridY && !selected; ++y) {
+                  for (x = 0; x < gridX && !selected; ++x) {
+
+                      // Caso nessa posição já tenha sido encontrado alguma parte do navio
+                      if (player[y][x][0] == 103) {
+                          // Guarda as coordenadas
+                          sx = x;
+                          sy = y;
+
+                          // Guarda as posições de cima, baixo, esquerda e direita de onde já houve uma explosão
+                          var nUp = (y > 0 && player[y - 1][x][0] <= 100);
+                          var nDown = (y < gridY - 1 && player[y + 1][x][0] <= 100);
+                          var nLeft = (x > 0 && player[y][x - 1][0] <= 100);
+                          var nRight = (x < gridX - 1 && player[y][x + 1][0] <= 100);
+
+                          // Se é a primeira tentativa
+                          if (pass == 0) {
+                              // Procura por duas explosões, primeiro em coluna, depois em linha
+                              var yUp = (y > 0 && player[y - 1][x][0] == 103);
+                              var yDown = (y < gridY - 1 && player[y + 1][x][0] == 103);
+                              var yLeft = (x > 0 && player[y][x - 1][0] == 103);
+                              var yRight = (x < gridX - 1 && player[y][x + 1][0] == 103);
+
+                              // Verifica as posições que vão ser checadas para encontrar a nave do jogador
+                              if (nLeft && yRight) { sx = x - 1; selected = true; }
+                              else if (nRight && yLeft) { sx = x + 1; selected = true; }
+                              else if (nUp && yDown) { sy = y - 1; selected = true; }
+                              else if (nDown && yUp) { sy = y + 1; selected = true; }
+
+                          } else {
+
+                              // Tenta encontrar o navio por completo baseado na explosão já encontrada
+                              if (nLeft) { sx = x - 1; selected = true; }
+                              else if (nRight) { sx = x + 1; selected = true; }
+                              else if (nUp) { sy = y - 1; selected = true; }
+                              else if (nDown) { sy = y + 1; selected = true; }
+                          }
+                      }
+                  }
+              }
+          }
+
+          // Verifica se nada foi encontrado, faz a tentativa de encontrar algum navio de forma aleatória
+          if (!selected) {
+              do{
+                  // Sorteia uma posição aleatória até que encontre algum lugar que ainda não foi selecionado
+                  sy = Math.floor(Math.random() * gridY);
+                  sx = Math.floor(Math.random() * gridX / 2) * 2 + sy % 2;
+
+              } while(player[sy][sx][0] > 100);
+          }
+
+          // Verifica se foi encontrado alguma parte do navio do jogador
+          if (player[sy][sx][0] < 100) {
+              // Indica na posição em questão que houve uma explosão
+              setImage(sy,sx,103,false);
+
+              // Guarda a posição do navio encontrado
+              var shipNo = player[sy][sx][1];
+
+              // Verifica se foi afudado algum tipo de navio
+              if (--shipPlayer[shipNo][1] == 0) {
+                  sinkShip(player, shipNo, false);
+                  alert("Eu afundei seu " + shipTypes[shipPlayer[shipNo][0]][0]);
+
+                  // Veriica se o jogador já não tem mais navio
+                  if ( --lifePlayer == 0 ) {
+
+                      // Avisa o jogador que ele perdeu e o computador ganhou
+                      knowYourEnemy();
+                      alert("O COMPUTADOR ganhou !! Atualize para uma nova partida novamente");//fala
+                      playFlag = false;
+                  }
+              }
+          } else {
+              // Indica que foi um tiro errado na posição em específico
+              setImage(sy,sx,102,false);
+          }
+      }
+
+      // Função para verifica se o navio inteiro for atingido, troca para o navio em vermelho (navio destruido)
+      function sinkShip(grid,shipNo,isComputer) {
+          var y, x;
+
+          // Percorre todas as posições do grid
+          for (y = 0; y < gridX; ++y) {
+              for (x = 0; x < gridX; ++x) {
+
+                  // Verifica se é um navio destruido, se não continua como está
+                  if ( grid[y][x][1] == shipNo )
+                      if (isComputer) setImage(y, x, computer[y][x][2], true);
+                  else
+                      setImage(y, x, player[y][x][2], false);
+              }
+          }
+      }
+
+      /* Mostrar a localização de todos os navios do computador quando o jogador perdeu
+      */
+      function knowYourEnemy() {
+          var y, x;
+
+          // Percorre todas as linhas e todas as colunas
+          for (y = 0; y < gridX; ++y) {
+              for (x = 0; x < gridX; ++x) {
+                  if (computer[y][x][0] == 103)
+                      setImage(y, x, computer[y][x][2], true);
+                  else if (computer[y][x][0] < 100)
+                    setImage(y, x, computer[y][x][0], true);
+            }
+         }
+      }
+
+      // Função para fazer a contagem de quantos navios o computador deixou
+      function updateStatus() {
+
+          // Indica que não encontrou nenhum navio
+          var shipStatus = false, i, tempMessage = "O Computador tem exatamente ";
+              // Pesquisa sobre os navios do computador
+              for (i = 0; i < shipComputer.length; ++i) {
+                  // Caso tenha sido encontrado
+                  if (shipComputer[i][1] > 0) {
+                      // Guarda a quantidade e indica que foi encontrado algum navio
+                      if (shipStatus) tempMessage = tempMessage + ", "; else shipStatus = true;
+                      tempMessage = tempMessage + shipTypes[shipComputer[i][0]][0];
+             }
+          }
+
+          // Não ficou nenhum navio, avisando no status da página
+          if (!shipStatus) tempMessage = tempMessage + "nada, Obrigado !";
+          statusMessage = tempMessage;
+          window.status = statusMessage;
+      }
+
+      // Seta a mensagem de status para a página
+      function setStatus() {
+          window.status = statusMessage;
+      }
+
+      </script>
+  </head>
+  <body>
+      <main>
+      		<div class="divMain">
+        			<script>
+                  // Carrega as imagens
+                  imagesLoad();
+
+                  // Carrega os navios do jogador e do computador
+          				player = shipsLoad(false);
+          				computer = shipsLoad(true);
+
+                  // Desenha a tabela para os dois grids
+                  document.write("<table><tr><td><p>Meu campo</p></td>"+
+          				               "<td class='fieldBattle'><p>Campo Oponente</p></td></tr><tr><td>");
+          				showGrid(false);
+          				document.write("</td><td class='fieldBattle'>");
+          				showGrid(true);
+          				document.write("</td></tr></table>");
+
+                  // Atualiza o status com um intervalo
+                  updateStatus();
+          				setInterval("setStatus();", 500);
+
+      		    </script>
+          </div>
+      </main>
+
+      <footer class="footerPage">
+          Equipe: Fernando Alves, José Eduardo Bittelbrum
+      </footer>
+  </body>
+</html>
