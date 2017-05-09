@@ -176,7 +176,6 @@
                   if (--shipComputer[shipNo][1] == 0) {
                       sinkShip(computer, shipNo, true);
                       alert("Você afundou meu " + shipTypes[shipComputer[shipNo][0]][0]);
-                      updateStatus();
 
                       // Caso o computador não tenha mais navios
                       if (--lifeComputer == 0) {
@@ -314,41 +313,17 @@
           // Percorre todas as linhas e todas as colunas
           for (y = 0; y < gridX; ++y) {
               for (x = 0; x < gridX; ++x) {
-                  if (computer[y][x][0] == 103)
+
+                  // Verifica se é uma parte do navio já explodido
+                  if (computer[y][x][0] == 103){
                       setImage(y, x, computer[y][x][2], true);
-                  else if (computer[y][x][0] < 100)
+                  // Verifica se é algum navio escondido
+                  } else if (computer[y][x][0] < 100){
                     setImage(y, x, computer[y][x][0], true);
+                  }
             }
          }
       }
-
-      // Função para fazer a contagem de quantos navios o computador deixou
-      function updateStatus() {
-
-          // Indica que não encontrou nenhum navio
-          var shipStatus = false, i, tempMessage = "O Computador tem exatamente ";
-
-          // Pesquisa sobre os navios do computador
-          for (i = 0; i < shipComputer.length; ++i) {
-              // Caso tenha sido encontrado
-              if (shipComputer[i][1] > 0) {
-                  // Guarda a quantidade e indica que foi encontrado algum navio
-                  if (shipStatus) tempMessage = tempMessage + ", "; else shipStatus = true;
-                  tempMessage = tempMessage + shipTypes[shipComputer[i][0]][0];
-              }
-          }
-
-          // Não ficou nenhum navio, avisando no status da página
-          if (!shipStatus) tempMessage = tempMessage + "nada, Obrigado !";
-          statusMessage = tempMessage;
-          window.status = statusMessage;
-      }
-
-      // Seta a mensagem de status para a página
-      function setStatus() {
-          window.status = statusMessage;
-      }
-
       </script>
   </head>
   <body>
@@ -370,11 +345,6 @@
           				showGrid(true);
                   document.write("</td><td><img src='ship-image.png' style='position: fixed; margin-left: 5%;'></img>");
           				document.write("</td></tr></table>");
-
-                  // Atualiza o status com um intervalo
-                  updateStatus();
-          				setInterval("setStatus();", 500);
-
       		    </script>
           </div>
       </main>
